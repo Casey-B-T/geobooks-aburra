@@ -10,7 +10,7 @@
   <header class="cabecera">
     <a class="logo" href="#inicio">
       <span class="logo-icono">📚</span>
-      <span class="logo-texto"><strong>Geobooks</strong> <em class="insignia">AMVA</em><small>Geoportal de lectura</small></span>
+      <span class="logo-texto"><strong>Geobooks</strong><small>Geoportal de lectura</small></span>
     </a>
     <nav class="menu">
       <a href="#inicio">Inicio</a>
@@ -44,7 +44,7 @@
           <input id="f-texto" type="search" placeholder="Buscar por nombre, dirección o municipio…" />
           <div class="fila">
             <select id="f-municipio"><option value="">Todos los municipios</option></select>
-            <select id="f-libro"><option value="">Todos los libros</option></select>
+            <select id="f-libro"><option value="">Todas las categorías</option></select>
           </div>
           <div class="fila">
             <button class="btn-primario" type="submit">Buscar bibliotecas</button>
@@ -137,7 +137,7 @@
   <footer class="pie">
     <div class="pie-grid">
       <div>
-        <h4>Geobooks <em class="insignia">AMVA</em></h4>
+        <h4>Geobooks</h4>
         <p>Plataforma metropolitana para conectar lectores con las bibliotecas del Valle de Aburrá mediante Sistemas de Información Geográfica (SIG).</p>
       </div>
       <div>
@@ -170,8 +170,8 @@
   <dialog id="modal-evento">
     <form id="form-evento">
       <h3>Crear evento de lectura</h3>
-      <label>Título <input id="e-titulo" required minlength="3" maxlength="150" /></label>
-      <label>Libro <select id="e-libro" required></select></label>
+      <label>Nombre del libro <input id="e-titulo" required minlength="3" maxlength="150" /></label>
+      <label>Categoría <select id="e-libro" required></select></label>
       <label>Biblioteca <select id="e-biblioteca" required></select></label>
       <label>Fecha y hora <input id="e-fecha" type="datetime-local" required /></label>
       <label>Descripción <textarea id="e-descripcion" rows="3" maxlength="1000"></textarea></label>

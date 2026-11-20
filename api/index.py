@@ -81,7 +81,7 @@ class SugerenciaIn(BaseModel):
 
 class EventoIn(BaseModel):
     titulo: str = Field(min_length=3, max_length=150)
-    libro_id: int = Field(gt=0)
+    categoria_id: int = Field(gt=0)
     biblioteca_id: int = Field(gt=0)
     fecha: datetime
     descripcion: str = Field(default="", max_length=1000)

@@ -89,28 +89,27 @@ SUGERENCIA = """
 """
 
 # ---------------------------------------------------------------- LIBROS Y EVENTOS
+# Ahora devuelve las categorías (se mantiene el nombre LIBROS para no tocar api.js)
 LIBROS = """
-    SELECT id, titulo, autor
-    FROM libros
-    ORDER BY titulo
+    SELECT id, nombre AS titulo, ''::text AS autor
+    FROM categorias
+    ORDER BY (nombre = 'Otro'), nombre
 """
 
-# Cada evento se entrega con la geometría de su biblioteca y los datos de su libro.
 EVENTOS = f"""
     SELECT e.id AS evento_id, e.titulo_evento AS titulo, e.fecha_reunion AS fecha,
-           e.descripcion,
-           l.id AS libro_id, l.titulo AS libro_titulo, l.autor,
+           e.descripcion, c.id AS categoria_id, c.nombre AS categoria,
            b.id AS biblioteca_id, b.nombre AS biblioteca_nombre, b.municipio,
            {_GEOJSON.format(tabla="b")}
     FROM eventos_lectura e
-    JOIN libros l        ON l.id = e.libro_id
-    JOIN bibliotecas b   ON b.id = e.biblioteca_id
+    LEFT JOIN categorias c ON c.id = e.categoria_id
+    JOIN bibliotecas b     ON b.id = e.biblioteca_id
     ORDER BY e.fecha_reunion
 """
 
 CREAR_EVENTO = """
-    INSERT INTO eventos_lectura (titulo_evento, libro_id, biblioteca_id, fecha_reunion, descripcion)
-    VALUES (%(titulo)s, %(libro_id)s, %(biblioteca_id)s, %(fecha)s, %(descripcion)s)
+    INSERT INTO eventos_lectura (titulo_evento, categoria_id, biblioteca_id, fecha_reunion, descripcion)
+    VALUES (%(titulo)s, %(categoria_id)s, %(biblioteca_id)s, %(fecha)s, %(descripcion)s)
     RETURNING id
 """
 
