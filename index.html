@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Geobooks Aburrá · Bibliotecas y clubes de lectura</title>
+</head>
+<body>
+  <!-- ============ CABECERA ============ -->
+  <header class="cabecera">
+    <a class="logo" href="#inicio">
+      <span class="logo-icono">📚</span>
+      <span class="logo-texto"><strong>Geobooks</strong> <em class="insignia">AMVA</em><small>Geoportal de lectura</small></span>
+    </a>
+    <nav class="menu">
+      <a href="#inicio">Inicio</a>
+      <a href="#bibliotecas">Bibliotecas</a>
+      <a href="#mapa">Mapa</a>
+      <a href="#eventos">Eventos</a>
+      <a href="#proyecto">Sobre el proyecto</a>
+    </nav>
+    <button id="btn-favoritas" class="btn-suave" type="button">♥ Favoritas <span id="num-favoritas">0</span></button>
+  </header>
+
+  <!-- Mensajes de estado (modo demo, errores, confirmaciones) -->
+  <div id="aviso" class="aviso" hidden></div>
+
+  <main>
+    <!-- ============ INICIO: PANEL LATERAL + MAPA ============ -->
+    <section id="inicio" class="mapa-seccion">
+      <aside id="panel" class="panel">
+        <span class="insignia-datos" id="insignia-datos">Cargando bibliotecas…</span>
+        <h1>Bibliotecas y clubes de lectura en el <span>Valle de Aburrá</span></h1>
+        <p class="lead">Encuentra la biblioteca más cercana, marca dónde viven los lectores de un libro y crea un evento para reunirse.</p>
+
+        <div class="chips">
+          <button class="chip" id="chip-cerca" type="button">📍 Cerca de mí</button>
+          <button class="chip" id="chip-eventos" type="button">📅 Con eventos</button>
+          <button class="chip" id="chip-grupo" type="button">👥 Marcar lectores</button>
+        </div>
+
+        <!-- Buscador y filtros: las opciones de los selects se llenan desde la API -->
+        <form id="form-buscar" class="caja">
+          <input id="f-texto" type="search" placeholder="Buscar por nombre, dirección o municipio…" />
+          <div class="fila">
+            <select id="f-municipio"><option value="">Todos los municipios</option></select>
+            <select id="f-libro"><option value="">Todos los libros</option></select>
+          </div>
+          <div class="fila">
+            <button class="btn-primario" type="submit">Buscar bibliotecas</button>
+            <button class="btn-suave" id="btn-limpiar" type="button">Limpiar</button>
+          </div>
+        </form>
+
+        <!-- Resultado de "Cerca de mí" -->
+        <div id="caja-cercanas" class="caja" hidden>
+          <h3>Más cercanas a tu ubicación</h3>
+          <ol id="lista-cercanas" class="lista-simple"></ol>
+        </div>
+
+        <!-- Herramienta de grupo: la idea diferenciadora -->
+        <div id="caja-grupo" class="caja" hidden>
+          <h3>Punto de encuentro para el grupo</h3>
+          <p class="nota">Haz clic en el mapa para marcar la ubicación de cada lector (mínimo 2).</p>
+          <ul id="lista-lectores" class="lista-simple"></ul>
+          <div class="fila">
+            <button class="btn-primario" id="btn-calcular" type="button" disabled>Calcular centro y sugerir</button>
+            <button class="btn-suave" id="btn-borrar-lectores" type="button">Borrar</button>
+          </div>
+          <div id="resultado-grupo"></div>
+        </div>
+
+        <!-- Control de capas: se genera desde main.js -->
+        <details class="caja" open>
+          <summary>Capas del mapa</summary>
+          <div id="control-capas" class="capas"></div>
+        </details>
+      </aside>
+
+      <div class="mapa-contenedor">
+        <button id="btn-panel" class="btn-panel" type="button" title="Mostrar u ocultar el panel">◀</button>
+        <div class="herramientas-mapa">
+          <details class="herramientas-sig">
+            <summary>⚙ Herramientas SIG</summary>
+            <div class="menu-flotante">
+              <label>Mapa base
+                <select id="sel-base">
+                  <option value="claro">OpenStreetMap</option>
+                  <option value="oscuro">Oscuro</option>
+                </select>
+              </label>
+              <button class="btn-suave" id="btn-centrar" type="button">Centrar en el Valle</button>
+              <button class="btn-suave" id="btn-limpiar-mapa" type="button">Quitar marcas del mapa</button>
+            </div>
+          </details>
+          <button class="btn-flotante" id="btn-ubicacion" type="button">📍 Mi ubicación</button>
+        </div>
+        <div id="mapa"></div>
+      </div>
+    </section>
+
+    <!-- ============ BIBLIOTECAS (tarjetas desde la API) ============ -->
+    <section id="bibliotecas" class="seccion">
+      <h2>Bibliotecas del Valle de Aburrá</h2>
+      <p id="resumen-resultados" class="nota"></p>
+      <div id="lista-bibliotecas" class="grilla"></div>
+    </section>
+
+    <!-- ============ EVENTOS ============ -->
+    <section id="eventos" class="seccion">
+      <div class="seccion-titulo">
+        <h2>Eventos de lectura</h2>
+        <button id="btn-nuevo-evento" class="btn-primario" type="button">+ Crear evento</button>
+      </div>
+      <div id="lista-eventos" class="grilla"></div>
+    </section>
+
+    <!-- ============ SOBRE EL PROYECTO + PREGUNTAS FRECUENTES ============ -->
+    <section id="proyecto" class="seccion estrecha">
+      <h2>Sobre el proyecto</h2>
+      <p>Geobooks Aburrá es un geoportal académico. Los lectores de un mismo libro marcan su ubicación, el sistema
+        calcula el centro geográfico del grupo y sugiere la biblioteca más cercana a ese centro para reunirse.
+        Todos los datos llegan desde una API (FastAPI) conectada a PostgreSQL + PostGIS.</p>
+      <h3>Preguntas frecuentes</h3>
+      <details class="faq"><summary>¿Cómo se calcula la biblioteca sugerida?</summary>
+        <p>Se pasan los puntos al sistema de coordenadas nacional (EPSG:9377, en metros), se calcula su centroide y se busca la biblioteca con menor distancia a ese centro.</p></details>
+      <details class="faq"><summary>¿Por qué el mapa usa EPSG:4326?</summary>
+        <p>Porque Leaflet trabaja con latitud y longitud. La base guarda la geometría en varios sistemas y la API convierte con ST_Transform.</p></details>
+      <details class="faq"><summary>¿Cómo creo un evento de lectura?</summary>
+        <p>Elige una biblioteca en el mapa o en las tarjetas, pulsa «Crear evento», selecciona el libro y la fecha.</p></details>
+      <details class="faq"><summary>¿Puedo ver las coordenadas de una biblioteca en otros sistemas?</summary>
+        <p>Sí. En el globo de cada biblioteca, el botón «Coordenadas» muestra la misma posición en 4326, 3857, 9377 y 3116.</p></details>
+    </section>
+  </main>
+
+  <!-- ============ PIE DE PÁGINA ============ -->
+  <footer class="pie">
+    <div class="pie-grid">
+      <div>
+        <h4>Geobooks <em class="insignia">AMVA</em></h4>
+        <p>Plataforma metropolitana para conectar lectores con las bibliotecas del Valle de Aburrá mediante Sistemas de Información Geográfica (SIG).</p>
+      </div>
+      <div>
+        <h4>Explorar</h4>
+        <a href="#inicio">Mapa interactivo</a>
+        <a href="#bibliotecas">Bibliotecas</a>
+        <a href="#eventos">Eventos de lectura</a>
+      </div>
+      <div>
+        <h4>Comunidad</h4>
+        <a href="#eventos">Crear un evento</a>
+        <a href="#proyecto">Preguntas frecuentes</a>
+        <a href="#proyecto">Sobre el proyecto SIG</a>
+      </div>
+      <div>
+        <h4>Tecnologías y fuentes</h4>
+        <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>
+        <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>
+        <a href="https://postgis.net" target="_blank" rel="noopener">PostGIS</a>
+        <a href="https://supabase.com" target="_blank" rel="noopener">Supabase</a>
+      </div>
+    </div>
+    <div class="pie-base">
+      <span id="pie-anio"></span>
+      <span id="pie-municipios"></span>
+    </div>
+  </footer>
+
+  <!-- ============ VENTANA: CREAR EVENTO ============ -->
+  <dialog id="modal-evento">
+    <form id="form-evento">
+      <h3>Crear evento de lectura</h3>
+      <label>Título <input id="e-titulo" required minlength="3" maxlength="150" /></label>
+      <label>Libro <select id="e-libro" required></select></label>
+      <label>Biblioteca <select id="e-biblioteca" required></select></label>
+      <label>Fecha y hora <input id="e-fecha" type="datetime-local" required /></label>
+      <label>Descripción <textarea id="e-descripcion" rows="3" maxlength="1000"></textarea></label>
+      <p id="e-error" class="error" hidden></p>
+      <div class="fila">
+        <button class="btn-primario" type="submit">Guardar evento</button>
+        <button class="btn-suave" id="e-cancelar" type="button">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

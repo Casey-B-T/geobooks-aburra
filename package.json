@@ -1,0 +1,19 @@
+{
+  "name": "geobooks-aburra",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Geobooks Aburrá: bibliotecas del Valle de Aburrá y eventos de lectura",
+  "scripts": {
+    "dev": "vite",
+    "api": "uvicorn api.index:app --reload --port 8000",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4"
+  },
+  "devDependencies": {
+    "vite": "^7.1.0"
+  }
+}
