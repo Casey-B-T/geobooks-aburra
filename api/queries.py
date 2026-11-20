@@ -40,17 +40,24 @@ BIBLIOTECAS_CERCANAS = f"""
 """
 
 # ---------------------------------------------------------------- CAPAS DE APOYO
-MUNICIPIOS = f"""
-    SELECT m.id, m.nombre, {_GEOJSON.format(tabla="m")}
+MUNICIPIOS = """
+    SELECT row_number() OVER () AS id,
+           COALESCE(to_jsonb(m)->>'name', to_jsonb(m)->>'nombre') AS nombre,
+           ST_AsGeoJSON(ST_Transform(m.geom, %(srid)s::int))::json AS geometry
     FROM municipios m
-    ORDER BY m.nombre
+    WHERE GeometryType(m.geom) IN ('POLYGON', 'MULTIPOLYGON')
+    ORDER BY nombre
 """
 
-ESTACIONES = f"""
-    SELECT e.id, e.nombre, e.tipo, {_GEOJSON.format(tabla="e")}
+ESTACIONES = """
+    SELECT row_number() OVER () AS id,
+           COALESCE(to_jsonb(e)->>'name', to_jsonb(e)->>'nombre', 'Estación') AS nombre,
+           COALESCE(to_jsonb(e)->>'railway', to_jsonb(e)->>'tipo', 'station') AS tipo,
+           ST_AsGeoJSON(ST_Transform(e.geom, %(srid)s::int))::json AS geometry
     FROM estaciones e
-    ORDER BY e.nombre
-"""  # AJUSTAR: columna "tipo"
+    WHERE GeometryType(e.geom) = 'POINT'
+    ORDER BY nombre
+"""
 
 # Vista materializada con las zonas de 500 m ya unidas.
 COBERTURA = f"""
