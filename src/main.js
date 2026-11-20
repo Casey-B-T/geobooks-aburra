@@ -1,10 +1,11 @@
+n · JS
 // src/main.js
-// Lógica de la página. Todo lo que se muestra (bibliotecas, libros, municipios, eventos,
+// Lógica de la página. Todo lo que se muestra (bibliotecas, categorías, municipios, eventos,
 // distancias) viene de la API: aquí NO hay datos escritos a mano.
 import './style.css';
 import { api } from './api.js';
 import * as M from './map.js';
-
+ 
 // ---------------------------------------------------------------- AYUDAS
 const $ = (s) => document.querySelector(s);
 // Escapa texto de la base antes de meterlo en HTML (evita inyección de código)
@@ -15,7 +16,7 @@ const norm = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,
 const fmtDist = (m) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`);
 const fmtFecha = (iso) => new Date(iso).toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
 const rutaGoogle = (lat, lon) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
-
+ 
 function mostrarAviso(texto, tipo = 'info') {
   const a = $('#aviso');
   a.textContent = texto;
@@ -23,7 +24,7 @@ function mostrarAviso(texto, tipo = 'info') {
   a.hidden = false;
   if (tipo === 'ok') setTimeout(() => { a.hidden = true; }, 4000);
 }
-
+ 
 // Configuración de la interfaz: qué capas existen y cuáles arrancan prendidas
 const CAPAS = [
   { id: 'bibliotecas', nombre: 'Bibliotecas', activa: true },
@@ -31,45 +32,45 @@ const CAPAS = [
   { id: 'estaciones', nombre: 'Estaciones del Metro', activa: true },
   { id: 'cobertura', nombre: 'Cobertura a 500 m', activa: false },
 ];
-
+ 
 // ---------------------------------------------------------------- ESTADO
 const leerFavoritas = () => {
   try { return JSON.parse(localStorage.getItem('geobooks_favoritas') || '[]'); } catch { return []; }
 };
-
+ 
 const estado = {
   bibliotecas: [],   // features GeoJSON
   eventos: [],       // features GeoJSON
-  libros: [],
+  libros: [],        // ahora contiene las categorías (id, titulo = nombre de la categoría)
   distancias: {},    // id biblioteca -> metros desde el usuario
   favoritas: new Set(leerFavoritas()),
   filtros: { texto: '', municipio: '', libro: '', soloEventos: false, soloFavoritas: false },
   puntos: [],        // lectores marcados en el mapa
   modoGrupo: false,
 };
-
+ 
 const eventosDe = (idBiblioteca) => estado.eventos.filter((e) => e.properties.biblioteca_id === idBiblioteca);
 const biblioteca = (id) => estado.bibliotecas.find((b) => b.properties.id === id);
-
+ 
 // ---------------------------------------------------------------- FILTROS
 function filtradas() {
   const f = estado.filtros;
   const texto = norm(f.texto);
   const conEvento = new Set(estado.eventos.map((e) => e.properties.biblioteca_id));
-  const conLibro = f.libro
-    ? new Set(estado.eventos.filter((e) => String(e.properties.libro_id) === f.libro)
+  const conCategoria = f.libro
+    ? new Set(estado.eventos.filter((e) => String(e.properties.categoria_id) === f.libro)
       .map((e) => e.properties.biblioteca_id))
     : null;
-
+ 
   const lista = estado.bibliotecas.filter((b) => {
     const p = b.properties;
     return (!texto || norm(`${p.nombre} ${p.direccion} ${p.municipio}`).includes(texto))
       && (!f.municipio || p.municipio === f.municipio)
-      && (!conLibro || conLibro.has(p.id))
+      && (!conCategoria || conCategoria.has(p.id))
       && (!f.soloEventos || conEvento.has(p.id))
       && (!f.soloFavoritas || estado.favoritas.has(p.id));
   });
-
+ 
   // Si el usuario compartió su ubicación, se ordenan de la más cercana a la más lejana
   if (Object.keys(estado.distancias).length) {
     lista.sort((a, b) => (estado.distancias[a.properties.id] ?? Infinity)
@@ -77,7 +78,7 @@ function filtradas() {
   }
   return lista;
 }
-
+ 
 // Vuelve a pintar todo lo que depende de los filtros
 function refrescar() {
   const lista = filtradas();
@@ -91,7 +92,7 @@ function refrescar() {
   $('#num-favoritas').textContent = estado.favoritas.size;
   $('#btn-favoritas').classList.toggle('activo', estado.filtros.soloFavoritas);
 }
-
+ 
 // ---------------------------------------------------------------- TARJETAS Y POPUPS
 function tarjetaBiblioteca(f) {
   const p = f.properties;
@@ -115,14 +116,13 @@ function tarjetaBiblioteca(f) {
       </div>
     </article>`;
 }
-
+ 
 function tarjetaEvento(f) {
   const p = f.properties;
   return `
     <article class="tarjeta">
-      <div class="tarjeta-cabeza"><span class="etiqueta morada">${esc(p.libro_titulo)}</span></div>
+      <div class="tarjeta-cabeza"><span class="etiqueta morada">${esc(p.categoria || 'Sin categoría')}</span></div>
       <h3>${esc(p.titulo)}</h3>
-      <p class="nota">✍ ${esc(p.autor)}</p>
       <p class="nota">🕒 ${fmtFecha(p.fecha)}</p>
       <p class="nota">📍 ${esc(p.biblioteca_nombre)} · ${esc(p.municipio)}</p>
       ${p.descripcion ? `<p>${esc(p.descripcion)}</p>` : ''}
@@ -131,7 +131,7 @@ function tarjetaEvento(f) {
       </div>
     </article>`;
 }
-
+ 
 function crearPopup(p, lat, lon) {
   const eventos = eventosDe(p.id)
     .map((e) => `<li>${esc(e.properties.titulo)} <small>${fmtFecha(e.properties.fecha)}</small></li>`).join('');
@@ -148,13 +148,13 @@ function crearPopup(p, lat, lon) {
       <div id="coords-${p.id}"></div>
     </div>`;
 }
-
+ 
 const renderEventos = () => {
   $('#lista-eventos').innerHTML = estado.eventos.length
     ? estado.eventos.map(tarjetaEvento).join('')
     : '<p class="vacio">Todavía no hay eventos. ¡Crea el primero!</p>';
 };
-
+ 
 // ---------------------------------------------------------------- ACCIONES (clics en tarjetas y popups)
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-accion]');
@@ -173,7 +173,7 @@ document.addEventListener('click', (e) => {
     mostrarCoordenadas(id);
   }
 });
-
+ 
 // Demostración de la transformación: misma biblioteca en 4 sistemas de coordenadas
 async function mostrarCoordenadas(id) {
   const caja = document.getElementById(`coords-${id}`);
@@ -188,7 +188,7 @@ async function mostrarCoordenadas(id) {
     caja.textContent = err.message;
   }
 }
-
+ 
 // ---------------------------------------------------------------- CERCA DE MÍ
 function ubicarme() {
   if (!navigator.geolocation) return mostrarAviso('Tu navegador no permite la geolocalización.', 'error');
@@ -212,7 +212,7 @@ function ubicarme() {
   }, () => mostrarAviso('No pudimos obtener tu ubicación. Revisa los permisos del navegador.', 'error'),
   { enableHighAccuracy: true, timeout: 10000 });
 }
-
+ 
 // ---------------------------------------------------------------- GRUPO DE LECTORES (idea diferenciadora)
 function alternarModoGrupo(activo) {
   estado.modoGrupo = activo;
@@ -220,7 +220,7 @@ function alternarModoGrupo(activo) {
   $('#caja-grupo').hidden = !activo;
   M.setModoGrupo(activo);
 }
-
+ 
 function renderLectores() {
   M.dibujarLectores(estado.puntos);
   $('#lista-lectores').innerHTML = estado.puntos.map((p, i) =>
@@ -228,14 +228,14 @@ function renderLectores() {
      <button class="enlace" data-quitar="${i}" title="Quitar">✕</button></li>`).join('');
   $('#btn-calcular').disabled = estado.puntos.length < 2;
 }
-
+ 
 function limpiarGrupo() {
   estado.puntos = [];
   $('#resultado-grupo').innerHTML = '';
   M.limpiarResultado();
   renderLectores();
 }
-
+ 
 async function calcularSugerencia() {
   try {
     const r = await api.sugerencia(estado.puntos);
@@ -250,20 +250,20 @@ async function calcularSugerencia() {
       </div>`;
   } catch (err) { mostrarAviso(err.message, 'error'); }
 }
-
+ 
 // ---------------------------------------------------------------- CREAR EVENTO (ventana modal)
 function abrirModalEvento(idBiblioteca) {
   $('#e-biblioteca').value = String(idBiblioteca);
   $('#e-error').hidden = true;
   $('#modal-evento').showModal();
 }
-
+ 
 async function guardarEvento(ev) {
   ev.preventDefault();
   try {
     await api.crearEvento({
-      titulo: $('#e-titulo').value.trim(),
-      libro_id: Number($('#e-libro').value),
+      titulo: $('#e-titulo').value.trim(),            // nombre del libro (texto libre)
+      categoria_id: Number($('#e-libro').value),      // categoría elegida en la lista
       biblioteca_id: Number($('#e-biblioteca').value),
       fecha: $('#e-fecha').value,
       descripcion: $('#e-descripcion').value.trim(),
@@ -279,21 +279,21 @@ async function guardarEvento(ev) {
     $('#e-error').hidden = false;
   }
 }
-
+ 
 // ---------------------------------------------------------------- CONSTRUCCIÓN DE CONTROLES
 const opciones = (lista, valor, texto) =>
   lista.map((x) => `<option value="${esc(valor(x))}">${esc(texto(x))}</option>`).join('');
-
+ 
 function llenarSelects() {
   const municipios = [...new Set(estado.bibliotecas.map((b) => b.properties.municipio))].sort();
   $('#f-municipio').innerHTML += opciones(municipios, (m) => m, (m) => m);
   $('#f-libro').innerHTML += opciones(estado.libros, (l) => l.id, (l) => l.titulo);
-  $('#e-libro').innerHTML = opciones(estado.libros, (l) => l.id, (l) => `${l.titulo} — ${l.autor}`);
+  $('#e-libro').innerHTML = opciones(estado.libros, (l) => l.id, (l) => l.titulo);
   $('#e-biblioteca').innerHTML = opciones(
     estado.bibliotecas.map((b) => b.properties), (p) => p.id, (p) => `${p.nombre} (${p.municipio})`);
   $('#pie-municipios').textContent = municipios.join(' · ');
 }
-
+ 
 function construirControlCapas() {
   $('#control-capas').innerHTML = CAPAS.map((c) =>
     `<label><input type="checkbox" data-capa="${c.id}" ${c.activa ? 'checked' : ''}> ${c.nombre}</label>`).join('');
@@ -302,7 +302,7 @@ function construirControlCapas() {
     if (e.target.dataset.capa) M.capaVisible(e.target.dataset.capa, e.target.checked);
   });
 }
-
+ 
 function conectarEventos() {
   // Buscador
   $('#form-buscar').addEventListener('submit', (e) => {
@@ -321,7 +321,7 @@ function conectarEventos() {
     $('#chip-eventos').classList.remove('activo');
     refrescar();
   });
-
+ 
   // Chips y botones del mapa
   $('#chip-cerca').addEventListener('click', ubicarme);
   $('#btn-ubicacion').addEventListener('click', ubicarme);
@@ -336,19 +336,19 @@ function conectarEventos() {
     refrescar();
     $('#bibliotecas').scrollIntoView({ behavior: 'smooth' });
   });
-
+ 
   // Herramientas SIG
   $('#sel-base').addEventListener('change', (e) => M.cambiarBase(e.target.value));
   $('#btn-centrar').addEventListener('click', M.centrarValle);
   $('#btn-limpiar-mapa').addEventListener('click', () => { M.limpiarMarcas(); limpiarGrupo(); });
-
+ 
   // Panel colapsable
   $('#btn-panel').addEventListener('click', () => {
     const colapsado = $('#inicio').classList.toggle('colapsado');
     $('#btn-panel').textContent = colapsado ? '▶' : '◀';
     setTimeout(M.redimensionar, 320); // espera a que termine la animación
   });
-
+ 
   // Grupo de lectores
   M.onClickMapa((lat, lon) => {
     if (!estado.modoGrupo) return;
@@ -366,20 +366,20 @@ function conectarEventos() {
   });
   $('#btn-calcular').addEventListener('click', calcularSugerencia);
   $('#btn-borrar-lectores').addEventListener('click', limpiarGrupo);
-
+ 
   // Eventos de lectura
   $('#btn-nuevo-evento').addEventListener('click', () => abrirModalEvento($('#e-biblioteca').value));
   $('#e-cancelar').addEventListener('click', () => $('#modal-evento').close());
   $('#form-evento').addEventListener('submit', guardarEvento);
 }
-
+ 
 // ---------------------------------------------------------------- ARRANQUE
 async function iniciar() {
   $('#pie-anio').textContent = `© ${new Date().getFullYear()} Geobooks Aburrá · Proyecto académico de Tecnologías Geoespaciales y Desarrollo Web`;
   M.crearMapa('mapa');
   construirControlCapas();
   conectarEventos();
-
+ 
   try {
     // Todo se pide a la API al mismo tiempo
     const [salud, bib, mun, est, cob, libros, ev] = await Promise.all([
@@ -389,7 +389,7 @@ async function iniciar() {
     estado.bibliotecas = bib.features;
     estado.eventos = ev.features;
     estado.libros = libros;
-
+ 
     M.dibujarMunicipios(mun);
     M.dibujarEstaciones(est);
     M.dibujarCobertura(cob);
@@ -403,5 +403,6 @@ async function iniciar() {
     $('#insignia-datos').textContent = 'Sin conexión con los datos';
   }
 }
-
+ 
 iniciar();
+ 
