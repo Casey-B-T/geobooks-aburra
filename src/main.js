@@ -1,4 +1,3 @@
-n · JS
 // src/main.js
 // Lógica de la página. Todo lo que se muestra (bibliotecas, categorías, municipios, eventos,
 // distancias) viene de la API: aquí NO hay datos escritos a mano.
